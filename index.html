@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmear Aura - Web Edition</title>
+    
+    <!-- Importamos p5.js para los gráficos y WebGL -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <!-- Importamos ml5.js para la detección de Inteligencia Artificial (MediaPipe web) -->
+    <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+    <!-- Tailwind CSS para estilizar la UI exterior -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { margin: 0; padding: 0; background-color: #111; color: white; overflow: hidden; font-family: 'Inter', sans-serif; }
+        canvas { display: block; margin: auto; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center bg-gray-900">
+
+    <div id="ui-layer">
+        <h1 class="text-4xl font-bold text-yellow-400 mt-6 drop-shadow-lg" id="title">MEDIDOR DE AURA</h1>
+        <p class="text-gray-300 mt-2 bg-gray-800 bg-opacity-70 px-4 py-1 rounded-full" id="status">Cargando modelos de IA...</p>
+        <div class="flex-grow"></div>
+    </div>
+
+<script>
+    
+    const vertShader = `
+        precision mediump float;
+        attribute vec3 aPosition;
+        attribute vec2 aTexCoord;
+        varying vec2 vTexCoord;
+        void main() {
+            vTexCoord = aTexCoord;
+            // p5.js requiere normalizar las posiciones de -1.0 a 1.0
+            vec4 positionVec4 = vec4(aPosition, 1.0);
+            positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+            gl_Position = positionVec4;
+        }
+    `;
+
+    const fragShader = `
+        precision mediump float;
+        varying vec2 vTexCoord;
+        
+        uniform float u_time;
+        uniform float u_fillAmount;
+        uniform vec3 u_baseColor;
+
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+        }
+
+        void main() {
+            
+            
+            vec2 uv = vTexCoord;
+            //uv.y = 1.0 - uv.y;
+            
+            float wave1 = sin(uv.x * 12.0 + u_time * 4.0) * 0.03;
+            float wave2 = cos(uv.x * 8.0 - u_time * 2.5) * 0.02;
+            
+            float surface = u_fillAmount + wave1 + wave2;
+            
+            if (uv.y < surface) {
+                float depth = (surface - uv.y) / surface; 
+                vec3 darkColor = u_baseColor * 0.4;
+                vec3 brightColor = u_baseColor + vec3(0.3);
+                
+                vec3 finalColor = mix(brightColor, darkColor, depth);
+                
+                float noise = random(floor(uv * 60.0 + vec2(0.0, -u_time * 3.0)));
+                if (noise > 0.98) { finalColor += vec3(0.6); }
+                
+                if (uv.y > surface - 0.015) { finalColor += vec3(0.5); }
+                
+                gl_FragColor = vec4(finalColor, 1.0);
+            } else {
+                gl_FragColor = vec4(0.1, 0.1, 0.12, 0.8); // Fondo del tanque semi-transparente
+            }
+        }
+    `;
+
+    let video;
+    let handPose;
+    let faceMesh;
+    let hands = [];
+    let faces = [];
+    
+    // Variables de Juego (Aura)
+    let auraScore = 0;
+    let currentLevel = 1;
+    let ultimoEstado = "ESPERANDO";
+    let tiempoUltimoGesto = 0;
+    
+    // Variables visuales 
+    let auraShader;
+    let shaderLayer; 
+    let auraVisual = 0.0;
+    let colorObjetivo = [0.5, 0.5, 0.5]; // [R, G, B]
+    let colorActual = [0.5, 0.5, 0.5];
+
+    function preload() {
+        
+        handPose = ml5.handPose({ maxHands: 2, flipped: true });
+        faceMesh = ml5.faceMesh({ maxFaces: 1, flipped: true });
+    }
+
+    function setup() {
+        
+        createCanvas(800, 600);
+        
+        
+        shaderLayer = createGraphics(150, 400, WEBGL);
+        auraShader = shaderLayer.createShader(vertShader, fragShader);
+        
+        
+        video = createCapture(VIDEO);
+        video.size(800, 600);
+        video.hide(); 
+
+        // Conectamos el video a los modelos de IA
+        handPose.detectStart(video, results => { hands = results; });
+        faceMesh.detectStart(video, results => { faces = results; });
+        
+        document.getElementById('status').innerText = "¡Listo para farmear! Haz el six-seven, shush o mewing.";
+    }
+
+    function draw() {
+        
+        push();
+        translate(width, 0);
+        scale(-1, 1);
+        image(video, 0, 0, width, height);
+        pop();
+        
+        
+        background(0, 100); 
+
+        
+        detectGestures();
+
+        
+        let auraObjetivoNormalizada = auraScore / 100.0;
+        auraVisual = lerp(auraVisual, auraObjetivoNormalizada, 0.05);
+        colorActual[0] = lerp(colorActual[0], colorObjetivo[0], 0.05);
+        colorActual[1] = lerp(colorActual[1], colorObjetivo[1], 0.05);
+        colorActual[2] = lerp(colorActual[2], colorObjetivo[2], 0.05);
+
+        
+        shaderLayer.shader(auraShader);
+        auraShader.setUniform('u_time', millis() / 1000.0);
+        auraShader.setUniform('u_fillAmount', auraVisual);
+        auraShader.setUniform('u_baseColor', colorActual);
+       
+        shaderLayer.rect(0, 0, shaderLayer.width, shaderLayer.height);
+
+        
+        let tankX = width - shaderLayer.width - 50;
+        let tankY = height / 2 - shaderLayer.height / 2;
+        
+        
+        stroke(255);
+        strokeWeight(4);
+        noFill();
+        rect(tankX - 2, tankY - 2, shaderLayer.width + 4, shaderLayer.height + 4);
+        
+        
+        image(shaderLayer, tankX, tankY);
+
+        
+        fill(255);
+        noStroke();
+        textSize(24);
+        textAlign(LEFT);
+        text(`Nivel: ${currentLevel}`, 30, 50);
+        
+        textSize(40);
+        fill(colorActual[0]*255, colorActual[1]*255, colorActual[2]*255);
+        text(`AURA: ${auraScore}`, 30, 100);
+        
+        textSize(20);
+        fill(200);
+        text(`Estado: ${ultimoEstado}`, 30, 140);
+        
+        
+        drawKeypoints();
+    }
+
+    function detectGestures() {
+        let tiempoActual = millis();
+        let puedeFarmear = (tiempoActual - tiempoUltimoGesto) > 1000; // 1 segundo de cooldown
+        let gestoFacialActivo = false;
+
+        // Validamos la Cara (Silencio / Mewing)
+        if (faces.length > 0 && hands.length > 0) {
+            let bocaCentro = faces[0].keypoints[13];
+            let mandibulaIzq = faces[0].keypoints[132];
+            let mandibulaDer = faces[0].keypoints[361];
+            let nariz = faces[0].keypoints[1];
+
+            for (let i = 0; i < hands.length; i++) {
+                let dedoIndex = hands[i].keypoints[8]; 
+
+                // ZONA DE EXCLUSIÓN
+                if (dist(dedoIndex.x, dedoIndex.y, nariz.x, nariz.y) < 150) {
+                    gestoFacialActivo = true;
+                }
+
+                if (puedeFarmear) {
+                    // SILENCIO
+                    if (dist(dedoIndex.x, dedoIndex.y, bocaCentro.x, bocaCentro.y) < 40) {
+                        addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]); // Cyan
+                        break;
+                    }
+                    // MEWING
+                    else if (dist(dedoIndex.x, dedoIndex.y, mandibulaIzq.x, mandibulaIzq.y) < 40 || 
+                             dist(dedoIndex.x, dedoIndex.y, mandibulaDer.x, mandibulaDer.y) < 40) {
+                        addAura(15, 'MEWING', [1.0, 0.0, 1.0]); // Magenta
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (hands.length === 2 && !gestoFacialActivo) {
+            let muneca1 = hands[0].keypoints[0]; 
+            let muneca2 = hands[1].keypoints[0];
+            
+            
+            let munecaIzq = muneca1.x < muneca2.x ? muneca1 : muneca2;
+            let munecaDer = muneca1.x < muneca2.x ? muneca2 : muneca1;
+
+            let diferenciaY = munecaIzq.y - munecaDer.y;
+            let umbralBalancin = 60; 
+
+            if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
+                addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
+            } 
+            else if (diferenciaY > umbralBalancin && ultimoEstado !== 'DER_ARRIBA') {
+                addAura(5, 'DER_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
+            }
+        }
+    }
+
+    function addAura(puntos, estado, colorRGB) {
+        auraScore += puntos;
+        ultimoEstado = estado;
+        colorObjetivo = colorRGB;
+        tiempoUltimoGesto = millis();
+        
+        
+        if (auraScore >= 100) {
+            currentLevel += Math.floor(auraScore / 100);
+            auraScore = auraScore % 100;
+            auraVisual = 0.0; // Reset visual
+        }
+    }
+
+    function drawKeypoints() {
+        fill(0, 255, 0);
+        noStroke();
+        
+        for (let i = 0; i < hands.length; i++) {
+            let hand = hands[i];
+            let indexTip = hand.keypoints[8];
+            circle(indexTip.x, indexTip.y, 15);
+        }
+    }
+</script>
+</body>
+</html>
