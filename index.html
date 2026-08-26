@@ -361,6 +361,13 @@
         let puedeFarmear = (tiempoActual - tiempoUltimoGesto) > 1000;
         let gestoFacialActivo = false;
 
+        // NUEVO: Umbrales dinámicos basados en la resolución real de la cámara
+        // Esto arregla el problema en celulares donde la resolución es muy alta y 40px era muy pequeño.
+        let maxDim = Math.max(video.width, video.height);
+        let umbralCara = maxDim * 0.06;      // 6% del tamaño de pantalla (hitbox para boca/mandíbula)
+        let umbralExclusion = maxDim * 0.20; // 20% para zona de exclusión (nariz)
+        let umbralBalancin = maxDim * 0.12;  // 12% para diferencia de altura entre muñecas
+
         // Escalar la detección a las coordenadas del video mapeado
         // (Como escalamos el video en draw, necesitamos que el detector actúe sobre las coordenadas originales del modelo)
         
@@ -373,17 +380,17 @@
             for (let i = 0; i < hands.length; i++) {
                 let dedoIndex = hands[i].keypoints[8]; 
 
-                if (dist(dedoIndex.x, dedoIndex.y, nariz.x, nariz.y) < 150) {
+                if (dist(dedoIndex.x, dedoIndex.y, nariz.x, nariz.y) < umbralExclusion) {
                     gestoFacialActivo = true;
                 }
 
                 if (puedeFarmear) {
-                    if (dist(dedoIndex.x, dedoIndex.y, bocaCentro.x, bocaCentro.y) < 40) {
+                    if (dist(dedoIndex.x, dedoIndex.y, bocaCentro.x, bocaCentro.y) < umbralCara) {
                         addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]); 
                         break;
                     }
-                    else if (dist(dedoIndex.x, dedoIndex.y, mandibulaIzq.x, mandibulaIzq.y) < 40 || 
-                             dist(dedoIndex.x, dedoIndex.y, mandibulaDer.x, mandibulaDer.y) < 40) {
+                    else if (dist(dedoIndex.x, dedoIndex.y, mandibulaIzq.x, mandibulaIzq.y) < umbralCara || 
+                             dist(dedoIndex.x, dedoIndex.y, mandibulaDer.x, mandibulaDer.y) < umbralCara) {
                         addAura(15, 'MEWING', [1.0, 0.0, 1.0]); 
                         break;
                     }
@@ -399,7 +406,6 @@
             let munecaDer = muneca1.x < muneca2.x ? muneca2 : muneca1;
 
             let diferenciaY = munecaIzq.y - munecaDer.y;
-            let umbralBalancin = 60; 
 
             if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
                 addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); 
