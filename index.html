@@ -431,25 +431,26 @@
     }
 
     function drawKeypoints() {
-        // Para dibujar sobre la pantalla redimensionada, necesitamos hacer la misma transformación matemática
+        // Calculamos la escala para mapear las coordenadas del modelo a la pantalla responsiva
         let videoRatio = video.width / video.height;
         let canvasRatio = width / height;
         let scaleRatio = (canvasRatio > videoRatio) ? (width / video.width) : (height / video.height);
         
-        push();
-        translate(width / 2, height / 2);
-        scale(-1, 1); // Espejo
-        scale(scaleRatio);
-        translate(-video.width / 2, -video.height / 2);
-        
         fill(0, 255, 0);
         noStroke();
+        
+        // Mapeo directo de las coordenadas del modelo a las coordenadas visuales de p5
+        // (Al quitar el push() y scale(-1, 1), evitamos que se haga un espejo doble)
         for (let i = 0; i < hands.length; i++) {
             let hand = hands[i];
             let indexTip = hand.keypoints[8];
-            if(indexTip) circle(indexTip.x, indexTip.y, 10);
+            
+            if(indexTip) {
+                let drawX = (indexTip.x - video.width / 2) * scaleRatio + width / 2;
+                let drawY = (indexTip.y - video.height / 2) * scaleRatio + height / 2;
+                circle(drawX, drawY, 15);
+            }
         }
-        pop();
     }
 </script>
 </body>
