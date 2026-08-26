@@ -399,19 +399,26 @@
         }
 
         if (hands.length === 2 && !gestoFacialActivo) {
-            let muneca1 = hands[0].keypoints[0]; 
-            let muneca2 = hands[1].keypoints[0];
+            let munecaA = hands[0].keypoints[0]; 
+            let munecaB = hands[1].keypoints[0];
             
-            let munecaIzq = muneca1.x < muneca2.x ? muneca1 : muneca2;
-            let munecaDer = muneca1.x < muneca2.x ? muneca2 : muneca1;
+            // CORRECCIÓN: Ordenamos estrictamente cuál es la mano izquierda y derecha visualmente.
+            // Esto evita que el movimiento rápido vuelva loca a la IA al intercambiar los índices.
+            let munecaIzq = munecaA.x < munecaB.x ? munecaA : munecaB;
+            let munecaDer = munecaA.x < munecaB.x ? munecaB : munecaA;
 
+            // Calculamos la diferencia de altura consistentemente
             let diferenciaY = munecaIzq.y - munecaDer.y;
+            
+            // Reducimos el umbral al 5% para que capte el gesto más rápido, 
+            // atrapando el movimiento antes de que la cámara se vea borrosa por la velocidad.
+            let umbralBalancin = maxDim * 0.05; 
 
             if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
-                addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); 
+                addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
             } 
             else if (diferenciaY > umbralBalancin && ultimoEstado !== 'DER_ARRIBA') {
-                addAura(5, 'DER_ARRIBA', [1.0, 0.8, 0.0]); 
+                addAura(5, 'DER_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
             }
         }
     }
