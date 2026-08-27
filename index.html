@@ -412,88 +412,93 @@
     }
 
     function detectGestures() {
-        let tiempoActual = millis();
-        let puedeFarmear = (tiempoActual - tiempoUltimoGesto) > 1000;
-        let gestoFacialActivo = false;
-        
-        let umbralDistancia = height * 0.06;
+    let tiempoActual = millis();
+    let puedeFarmear = (tiempoActual - tiempoUltimoGesto) > 1000;
+    let gestoFacialActivo = false;
+    
+    let umbralDistancia = height * 0.06;
 
-        if (faces.length > 0 && hands.length > 0) {
-            let bocaCentro = faces[0].keypoints[13];
-            let mandibulaIzq = faces[0].keypoints[132];
-            let mandibulaDer = faces[0].keypoints[361];
-            let nariz = faces[0].keypoints[1];
+    if (faces.length > 0 && hands.length > 0) {
+        let bocaCentro = faces[0].keypoints[13];
+        let mandibulaIzq = faces[0].keypoints[132];
+        let mandibulaDer = faces[0].keypoints[361];
+        let nariz = faces[0].keypoints[1];
 
-            let vW = video.width;
-            let vH = video.height;
+        let vW = video.width;
+        let vH = video.height;
 
-            for (let i = 0; i < hands.length; i++) {
-                let dedoIndexRaw = hands[i].keypoints[8];
-                let bx = width - map(dedoIndexRaw.x, 0, vW, 0, width);
-                let by = map(dedoIndexRaw.y, 0, vH, 0, height);
-                
-                let nx = width - map(nariz.x, 0, vW, 0, width);
-                let ny = map(nariz.y, 0, vH, 0, height);
+        for (let i = 0; i < hands.length; i++) {
+            let dedoIndexRaw = hands[i].keypoints[8];
 
-                let zonaExclusion = height * 0.25; 
-                if (dist(bx, by, nx, ny) < zonaExclusion) {
-                    gestoFacialActivo = true;
-                }
+            // ❗ CORREGIDO: NO invertir manualmente
+            let bx = map(dedoIndexRaw.x, 0, vW, 0, width);
+            let by = map(dedoIndexRaw.y, 0, vH, 0, height);
 
-                if (puedeFarmear) {
-                    let cx = width - map(bocaCentro.x, 0, vW, 0, width);
-                    let cy = map(bocaCentro.y, 0, vH, 0, height);
-                    
-                    if (dist(bx, by, cx, cy) < umbralDistancia) {
-                        addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]);
-                        break;
-                    }
-                    
-                    let mxIzq = width - map(mandibulaIzq.x, 0, vW, 0, width);
-                    let myIzq = map(mandibulaIzq.y, 0, vH, 0, height);
-                    let mxDer = width - map(mandibulaDer.x, 0, vW, 0, width);
-                    let myDer = map(mandibulaDer.y, 0, vH, 0, height);
-                    
-                    if (dist(bx, by, mxIzq, myIzq) < umbralDistancia || 
-                        dist(bx, by, mxDer, myDer) < umbralDistancia) {
-                        addAura(15, 'MEWING', [1.0, 0.0, 1.0]);
-                        break;
-                    }
-                }
-            }
-        }
+            let nx = map(nariz.x, 0, vW, 0, width);
+            let ny = map(nariz.y, 0, vH, 0, height);
 
-        if (hands.length === 2 && !gestoFacialActivo) {
-            let m0_raw = hands[0].keypoints[0]; 
-            let m1_raw = hands[1].keypoints[0];
-            
-            let m0_y = map(m0_raw.y, 0, video.height, 0, height);
-            let m1_y = map(m1_raw.y, 0, video.height, 0, height);
-            let m0_x = width - map(m0_raw.x, 0, video.width, 0, width);
-            let m1_x = width - map(m1_raw.x, 0, video.width, 0, width);
-
-            // 1. Identificar estrictamente cuál es la izquierda y derecha visualmente
-            let mIzq_y, mDer_y;
-            if (m0_x < m1_x) {
-                mIzq_y = m0_y;
-                mDer_y = m1_y;
-            } else {
-                mIzq_y = m1_y;
-                mDer_y = m0_y;
+            let zonaExclusion = height * 0.25; 
+            if (dist(bx, by, nx, ny) < zonaExclusion) {
+                gestoFacialActivo = true;
             }
 
-            // 2. Calcular la diferencia con el orden correcto
-            let diferenciaY = mIzq_y - mDer_y;
-            let umbralBalancin = height * 0.05; // 5% de la altura de la pantalla (muy sensible)
+            if (puedeFarmear) {
+                let cx = map(bocaCentro.x, 0, vW, 0, width);
+                let cy = map(bocaCentro.y, 0, vH, 0, height);
 
-            if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
-                addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
-            } 
-            else if (diferenciaY > umbralBalancin && ultimoEstado !== 'DER_ARRIBA') {
-                addAura(5, 'DER_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
+                if (dist(bx, by, cx, cy) < umbralDistancia) {
+                    addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]);
+                    break;
+                }
+
+                let mxIzq = map(mandibulaIzq.x, 0, vW, 0, width);
+                let myIzq = map(mandibulaIzq.y, 0, vH, 0, height);
+                let mxDer = map(mandibulaDer.x, 0, vW, 0, width);
+                let myDer = map(mandibulaDer.y, 0, vH, 0, height);
+
+                if (dist(bx, by, mxIzq, myIzq) < umbralDistancia || 
+                    dist(bx, by, mxDer, myDer) < umbralDistancia) {
+                    addAura(15, 'MEWING', [1.0, 0.0, 1.0]);
+                    break;
+                }
             }
         }
     }
+
+    // --- GESTO SIX-SEVEN (IZQ_ARRIBA / DER_ARRIBA) ---
+    if (hands.length === 2 && !gestoFacialActivo) {
+        let m0_raw = hands[0].keypoints[0]; 
+        let m1_raw = hands[1].keypoints[0];
+
+        let m0_y = map(m0_raw.y, 0, video.height, 0, height);
+        let m1_y = map(m1_raw.y, 0, video.height, 0, height);
+
+        // ❗ CORREGIDO: NO invertir manualmente
+        let m0_x = map(m0_raw.x, 0, video.width, 0, width);
+        let m1_x = map(m1_raw.x, 0, video.width, 0, width);
+
+        // Identificar izquierda/derecha correctamente
+        let mIzq_y, mDer_y;
+        if (m0_x < m1_x) {
+            mIzq_y = m0_y;
+            mDer_y = m1_y;
+        } else {
+            mIzq_y = m1_y;
+            mDer_y = m0_y;
+        }
+
+        let diferenciaY = mIzq_y - mDer_y;
+        let umbralBalancin = height * 0.05;
+
+        if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
+            addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]);
+        } 
+        else if (diferenciaY > umbralBalancin && ultimoEstado !== 'DER_ARRIBA') {
+            addAura(5, 'DER_ARRIBA', [1.0, 0.8, 0.0]);
+        }
+    }
+}
+
 
     function addAura(puntos, estado, colorRGB) {
         auraScore += puntos;
