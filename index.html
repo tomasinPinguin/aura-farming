@@ -182,26 +182,22 @@
         document.getElementById('title').classList.remove('hidden');
         estadoJuego = "CARGANDO";
 
-        document.getElementById('status').innerText = "1/4 Solicitando cámara frontal...";
+        document.getElementById('status').innerText = "1/4 Solicitando cámara...";
         
-        // 1. Forzar cámara frontal explícitamente
-        let constraints = {
-            video: { facingMode: "user" },
-            audio: false
-        };
-        
-        video = createCapture(constraints, function(stream) {
-            // 2. Propiedades anti-bloqueo para celulares
+        // 1. Usar VIDEO (constante general de p5) asegura compatibilidad en PC y Celulares
+        video = createCapture(VIDEO, function() {
+            // 2. Propiedades anti-bloqueo obligatorias para iOS y Android
             video.elt.setAttribute('playsinline', '');
             video.elt.setAttribute('muted', '');
             video.volume(0);
             video.hide();
             
-            // 3. ¡ESPERAR a que la cámara reporte dimensiones reales (Evita el bug 0x0)!
-            video.elt.onloadedmetadata = () => {
+            // 3. Reemplazamos el evento que se trababa por un simple temporizador seguro.
+            // Medio segundo es más que suficiente para que la cámara estabilice su tamaño en Android.
+            setTimeout(() => {
                 video.size(windowWidth, windowHeight);
-                cargarModelosSecuencialmente(); // Llamamos al siguiente paso
-            };
+                cargarModelosSecuencialmente(); // Llamamos al paso 2
+            }, 500);
         });
     }
 
