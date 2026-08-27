@@ -5,68 +5,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Farmear Aura - Web Edition</title>
     
-    <!-- Importamos p5.js para los gráficos y WebGL -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-    <!-- Importamos ml5.js para la detección de Inteligencia Artificial (MediaPipe web) -->
     <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
-    <!-- Tailwind CSS para estilizar la UI exterior -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        body { margin: 0; padding: 0; background-color: #111; color: white; overflow: hidden; font-family: 'Inter', sans-serif; touch-action: none; }
-        canvas { display: block; margin: auto; }
+        body { margin: 0; padding: 0; background-color: #111; color: white; overflow: hidden; font-family: 'Inter', sans-serif; touch-action: none;}
+        canvas { display: block; margin: auto; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); object-fit: cover;}
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .pointer-events-auto { pointer-events: auto; }
         
-        /* Clases utilitarias para ocultar/mostrar menús fluidamente */
-        .hidden-menu { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-        .visible-menu { opacity: 1; pointer-events: auto; transition: opacity 0.3s ease; }
+        /* Animación de pulso para el botón de inicio */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .animate-pulse-btn { animation: pulse 2s infinite; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-center bg-gray-900 relative">
+<body class="h-screen w-screen flex flex-col items-center justify-center bg-gray-900">
 
-    <!-- OVERLAY: Cargando -->
-    <div id="ui-loading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 visible-menu">
-        <h1 class="text-4xl md:text-6xl font-bold text-yellow-400 mb-4 animate-pulse text-center">FARMEO DE AURA</h1>
-        <p class="text-xl text-gray-300">Invocando Inteligencia Artificial...</p>
-        <div class="mt-8 w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-    </div>
-
-    <!-- OVERLAY: Menú Principal -->
-    <div id="ui-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm hidden-menu">
-        <h1 class="text-5xl md:text-7xl font-bold text-yellow-400 mb-8 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] text-center">FARMEO<br>DE AURA</h1>
-        <button onclick="startGame('TRAINING')" class="mb-4 px-8 py-4 w-64 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-bold text-xl transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(37,99,235,0.6)]">
-            Entrenamiento
-        </button>
-        <button onclick="startGame('MULTIPLAYER')" class="px-8 py-4 w-64 bg-red-600 hover:bg-red-500 rounded-full text-white font-bold text-xl transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.6)]">
-            Batalla (1 vs 1)
-        </button>
-    </div>
-
-    <!-- OVERLAY: Cambio de Turno -->
-    <div id="ui-turn" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-blue-900 bg-opacity-90 hidden-menu px-4 text-center">
-        <h2 class="text-4xl md:text-5xl font-bold text-white mb-2">¡Tiempo del Jugador 1 Terminado!</h2>
-        <p class="text-2xl text-yellow-300 mb-8">Aura conseguida: <span id="p1-score-display">0</span></p>
-        <h3 class="text-3xl font-bold text-white mb-8 animate-bounce">¡Pásale el celular al Jugador 2!</h3>
-        <button onclick="startPlayer2Turn()" class="px-8 py-4 bg-green-500 hover:bg-green-400 rounded-full text-white font-bold text-xl transition-all shadow-lg transform hover:scale-105">
-            ¡Estoy Listo!
-        </button>
-    </div>
-
-    <!-- OVERLAY: Resultados -->
-    <div id="ui-results" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-gray-900 bg-opacity-95 hidden-menu px-4 text-center">
-        <h1 class="text-5xl md:text-7xl font-bold text-yellow-400 mb-8" id="winner-text">¡GANADOR!</h1>
-        <div class="flex gap-8 mb-10 w-full max-w-md justify-center">
-            <div class="bg-gray-800 p-4 rounded-xl flex-1 border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-                <p class="text-gray-400">Jugador 1</p>
-                <p class="text-3xl font-bold text-white" id="res-p1">0</p>
-            </div>
-            <div class="bg-gray-800 p-4 rounded-xl flex-1 border-2 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-                <p class="text-gray-400">Jugador 2</p>
-                <p class="text-3xl font-bold text-white" id="res-p2">0</p>
-            </div>
+    <div id="ui-layer">
+        
+        <!-- PANTALLA INICIAL -->
+        <div id="start-screen" class="pointer-events-auto flex flex-col items-center">
+            <h1 class="text-5xl font-extrabold text-yellow-400 mt-6 drop-shadow-lg text-center leading-tight">FARM<br>AURA</h1>
+            <p class="text-gray-400 mt-4 text-center max-w-xs mb-8">Usa tu cámara para farmear energía.</p>
+            <button onclick="iniciarApp()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-full text-xl shadow-[0_0_20px_rgba(37,99,235,0.6)] animate-pulse-btn transition-colors">
+                CONECTAR CÁMARA
+            </button>
         </div>
-        <button onclick="resetToMenu()" class="px-8 py-4 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-bold text-xl transition-all">
-            Volver al Menú
-        </button>
+
+        <!-- TEXTO DE CARGA -->
+        <h1 class="text-4xl font-bold text-yellow-400 mt-6 drop-shadow-lg hidden" id="title">MEDIDOR DE AURA</h1>
+        <p class="text-gray-300 mt-2 bg-gray-800 bg-opacity-90 px-6 py-2 rounded-full font-bold hidden shadow-lg border border-gray-600" id="status">Iniciando...</p>
+        
+        <!-- MENÚ PRINCIPAL -->
+        <div id="menu" class="pointer-events-auto hidden flex flex-col gap-4 mt-8 bg-gray-900 bg-opacity-80 p-8 rounded-2xl border border-gray-700 backdrop-blur-sm">
+            <button onclick="iniciarEntrenamiento()" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 px-8 rounded-full text-lg w-full transition-colors">
+                Entrenamiento Libre
+            </button>
+            <button onclick="iniciarBatalla()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-full text-lg w-full shadow-[0_0_15px_rgba(147,51,234,0.5)] transition-colors">
+                Batalla (Pasa el celular)
+            </button>
+        </div>
+
+        <!-- RELOJ DE BATALLA Y BOTÓN SALIR-->
+        <div class="absolute top-4 w-full flex justify-between px-6 items-start">
+            <h2 id="timer-display" class="text-6xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] hidden">30</h2>
+            <button id="btn-salir" onclick="salirAlMenu()" class="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full text-sm shadow-lg border border-red-800 hidden transition-colors">
+                ✖ SALIR
+            </button>
+        </div>
+
+        <!-- PANTALLAS DE TRANSICIÓN BATALLA -->
+        <div id="pantalla-cambio" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-90 flex flex-col items-center justify-center pointer-events-auto z-50">
+            <h2 class="text-3xl text-white font-bold text-center px-4">¡Tiempo del Jugador 1 Terminado!</h2>
+            <p class="text-xl text-yellow-400 mt-4 font-bold" id="score-p1-pantalla">Aura: 0</p>
+            <p class="text-gray-300 mt-8 text-center px-8">Pasa el dispositivo al Jugador 2.</p>
+            <button onclick="iniciarTurnoJ2()" class="mt-8 bg-green-500 hover:bg-green-400 text-white font-bold py-4 px-10 rounded-full text-2xl shadow-[0_0_20px_rgba(34,197,94,0.6)] animate-pulse-btn">
+                ¡ESTOY LISTO!
+            </button>
+        </div>
+
+        <div id="pantalla-resultados" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-95 flex flex-col items-center justify-center pointer-events-auto z-50">
+            <h1 class="text-5xl text-yellow-400 font-black mb-8 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">¡RESULTADOS!</h1>
+            <div class="flex flex-col gap-6 w-full max-w-sm px-6">
+                <div class="bg-gray-800 p-6 rounded-xl border-2 border-gray-600 flex justify-between items-center" id="box-p1">
+                    <span class="text-2xl text-gray-300 font-bold">Jugador 1</span>
+                    <span class="text-4xl text-white font-black" id="score-final-p1">0</span>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl border-2 border-gray-600 flex justify-between items-center" id="box-p2">
+                    <span class="text-2xl text-gray-300 font-bold">Jugador 2</span>
+                    <span class="text-4xl text-white font-black" id="score-final-p2">0</span>
+                </div>
+            </div>
+            <h2 class="text-4xl text-white font-black mt-10 animate-bounce" id="texto-ganador">¡EMPATE!</h2>
+            <button onclick="salirAlMenu()" class="mt-12 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-full text-xl transition-colors">
+                Volver al Menú
+            </button>
+        </div>
+
     </div>
 
 <script>
@@ -89,26 +109,20 @@
         uniform float u_time;
         uniform float u_fillAmount;
         uniform vec3 u_baseColor;
-
         float random (vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
-
         void main() {
             vec2 uv = vTexCoord;
             float wave1 = sin(uv.x * 12.0 + u_time * 4.0) * 0.03;
             float wave2 = cos(uv.x * 8.0 - u_time * 2.5) * 0.02;
-            
             float surface = u_fillAmount + wave1 + wave2;
-            
             if (uv.y < surface) {
                 float depth = (surface - uv.y) / surface; 
                 vec3 darkColor = u_baseColor * 0.4;
                 vec3 brightColor = u_baseColor + vec3(0.3);
                 vec3 finalColor = mix(brightColor, darkColor, depth);
-                
                 float noise = random(floor(uv * 60.0 + vec2(0.0, -u_time * 3.0)));
                 if (noise > 0.98) { finalColor += vec3(0.6); }
                 if (uv.y > surface - 0.015) { finalColor += vec3(0.5); }
-                
                 gl_FragColor = vec4(finalColor, 1.0);
             } else {
                 gl_FragColor = vec4(0.1, 0.1, 0.12, 0.8);
@@ -122,276 +136,322 @@
     let hands = [];
     let faces = [];
     
-    // Máquina de Estados
-    let state = 'LOADING'; // LOADING, MENU, PLAYING, PASS_TURN, RESULTS
-    let gameMode = '';     // TRAINING, MULTIPLAYER
-    let currentPlayer = 1; 
-    
     // Variables de Juego (Aura)
     let auraScore = 0;
     let currentLevel = 1;
-    let totalAuraGained = 0; // Se acumula para resultados finales
-    let p1FinalScore = 0;
-    
     let ultimoEstado = "ESPERANDO";
     let tiempoUltimoGesto = 0;
     
-    // Variables de Tiempo
-    let turnDuration = 30; // Segundos por turno en multiplayer
-    let turnStartTime = 0;
+    // Estado del sistema
+    let estadoJuego = "INICIO"; 
+    let modelosCargados = 0;
     
-    // Variables Visuales (GLSL)
+    // Variables batalla
+    let tiempoRestante = 0;
+    let lastTimeCheck = 0;
+    let scoreJ1 = 0;
+    let scoreJ2 = 0;
+
+    // Variables visuales 
     let auraShader;
-    let shaderLayer;
+    let shaderLayer; 
     let auraVisual = 0.0;
-    let colorObjetivo = [0.5, 0.5, 0.5]; 
+    let colorObjetivo = [0.5, 0.5, 0.5];
     let colorActual = [0.5, 0.5, 0.5];
-    let modelsLoaded = 0;
 
     function preload() {
-        handPose = ml5.handPose({ maxHands: 2, flipped: true }, () => checkModelsLoaded());
-        faceMesh = ml5.faceMesh({ maxFaces: 1, flipped: true }, () => checkModelsLoaded());
-    }
-
-    function checkModelsLoaded() {
-        modelsLoaded++;
-        if(modelsLoaded === 2) {
-            // Cuando ambos modelos cargan, mostramos el menú
-            document.getElementById('ui-loading').classList.replace('visible-menu', 'hidden-menu');
-            document.getElementById('ui-menu').classList.replace('hidden-menu', 'visible-menu');
-            state = 'MENU';
-        }
+       
     }
 
     function setup() {
-        // Lienzo responsivo (toda la pantalla)
-        createCanvas(windowWidth, windowHeight);
+        let canvas = createCanvas(windowWidth, windowHeight);
+        canvas.style('object-fit', 'cover'); 
         
-        // Shader layer (tamaño fijo interno para no saturar memoria)
-        shaderLayer = createGraphics(150, 400, WEBGL);
+        
+        shaderLayer = createGraphics(windowWidth * 0.3, windowHeight * 0.6, WEBGL);
         auraShader = shaderLayer.createShader(vertShader, fragShader);
         
-        // Solicitar cámara frontal idealmente para celulares
-        let constraints = { video: { facingMode: "user" }, audio: false };
-        video = createCapture(constraints, () => {
-            // Conectar video a IA una vez que la cámara esté lista
+       
+        video = createCapture({ video: true, audio: false }, function() {
+            
+        });
+        video.hide();
+    }
+
+   
+    function iniciarApp() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('status').classList.remove('hidden');
+        document.getElementById('title').classList.remove('hidden');
+        estadoJuego = "CARGANDO";
+
+        document.getElementById('status').innerText = "1/3 Solicitando cámara...";
+        
+        
+        video = createCapture(VIDEO, function() {
+            video.size(windowWidth, windowHeight);
+            video.hide();
+            
+            document.getElementById('status').innerText = "2/3 Descargando IA (Manos)...";
+            handPose = ml5.handPose({ maxHands: 2, flipped: true }, modeloCargado);
+            
+            document.getElementById('status').innerText = "3/3 Descargando IA (Rostro)...";
+            faceMesh = ml5.faceMesh({ maxFaces: 1, flipped: true }, modeloCargado);
+        });
+    }
+
+    function modeloCargado() {
+        modelosCargados++;
+        if (modelosCargados === 2) {
+            document.getElementById('status').innerText = "Conectando IA a la cámara...";
+            
             handPose.detectStart(video, results => { hands = results; });
             faceMesh.detectStart(video, results => { faces = results; });
-        });
-        video.hide(); 
+            
+            
+            setTimeout(() => {
+                document.getElementById('status').classList.add('hidden');
+                document.getElementById('title').classList.add('hidden');
+                document.getElementById('menu').classList.remove('hidden');
+                estadoJuego = "MENU";
+            }, 1000);
+        }
+    }
+    // ----------------------------------------
+
+    function iniciarEntrenamiento() {
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('btn-salir').classList.remove('hidden');
+        resetAura();
+        estadoJuego = "ENTRENAMIENTO";
     }
 
-    // Asegurar que el lienzo cambie de tamaño si se rota el celular o redimensiona ventana
-    function windowResized() {
-        resizeCanvas(windowWidth, windowHeight);
+    function iniciarBatalla() {
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('timer-display').classList.remove('hidden');
+        document.getElementById('btn-salir').classList.remove('hidden');
+        resetAura();
+        scoreJ1 = 0;
+        scoreJ2 = 0;
+        iniciarTemporizador(30);
+        estadoJuego = "BATALLA_J1";
     }
 
-    window.startGame = function(mode) {
-        gameMode = mode;
-        currentPlayer = 1;
-        resetPlayerStats();
-        
-        document.getElementById('ui-menu').classList.replace('visible-menu', 'hidden-menu');
-        state = 'PLAYING';
-        turnStartTime = millis();
+    function iniciarTurnoJ2() {
+        document.getElementById('pantalla-cambio').classList.add('hidden');
+        document.getElementById('timer-display').classList.remove('hidden');
+        document.getElementById('btn-salir').classList.remove('hidden');
+        resetAura();
+        iniciarTemporizador(30);
+        estadoJuego = "BATALLA_J2";
     }
 
-    window.startPlayer2Turn = function() {
-        currentPlayer = 2;
-        resetPlayerStats();
-        
-        document.getElementById('ui-turn').classList.replace('visible-menu', 'hidden-menu');
-        state = 'PLAYING';
-        turnStartTime = millis();
+    function iniciarTemporizador(segundos) {
+        tiempoRestante = segundos;
+        lastTimeCheck = millis();
+        document.getElementById('timer-display').innerText = tiempoRestante;
+        document.getElementById('timer-display').classList.remove('text-red-500', 'animate-ping');
     }
 
-    window.resetToMenu = function() {
-        document.getElementById('ui-results').classList.replace('visible-menu', 'hidden-menu');
-        document.getElementById('ui-menu').classList.replace('hidden-menu', 'visible-menu');
-        state = 'MENU';
+    function salirAlMenu() {
+        estadoJuego = "MENU";
+        document.getElementById('menu').classList.remove('hidden');
+        document.getElementById('timer-display').classList.add('hidden');
+        document.getElementById('pantalla-resultados').classList.add('hidden');
+        document.getElementById('btn-salir').classList.add('hidden');
+        resetAura();
     }
 
-    function resetPlayerStats() {
+    function resetAura() {
         auraScore = 0;
         currentLevel = 1;
-        totalAuraGained = 0;
-        auraVisual = 0.0;
         ultimoEstado = "ESPERANDO";
         colorObjetivo = [0.5, 0.5, 0.5];
     }
 
-    function endPlayer1Turn() {
-        state = 'PASS_TURN';
-        p1FinalScore = totalAuraGained;
-        document.getElementById('p1-score-display').innerText = p1FinalScore;
-        document.getElementById('ui-turn').classList.replace('hidden-menu', 'visible-menu');
-    }
-
-    function showResults() {
-        state = 'RESULTS';
-        let p2FinalScore = totalAuraGained;
-        
-        document.getElementById('res-p1').innerText = p1FinalScore;
-        document.getElementById('res-p2').innerText = p2FinalScore;
-        
-        let winnerText = document.getElementById('winner-text');
-        if (p1FinalScore > p2FinalScore) {
-            winnerText.innerText = "¡JUGADOR 1 GANA!";
-            winnerText.className = "text-5xl md:text-7xl font-bold text-blue-400 mb-8 animate-bounce";
-        } else if (p2FinalScore > p1FinalScore) {
-            winnerText.innerText = "¡JUGADOR 2 GANA!";
-            winnerText.className = "text-5xl md:text-7xl font-bold text-red-400 mb-8 animate-bounce";
-        } else {
-            winnerText.innerText = "¡EMPATE DE AURA!";
-            winnerText.className = "text-5xl md:text-7xl font-bold text-yellow-400 mb-8";
-        }
-        
-        document.getElementById('ui-results').classList.replace('hidden-menu', 'visible-menu');
-    }
-
     function draw() {
-        background(20);
+        if (estadoJuego === "INICIO" || estadoJuego === "CARGANDO" || estadoJuego === "MENU" || estadoJuego === "RESULTADOS" || estadoJuego === "CAMBIO") {
+            background(17, 24, 39); // Gris oscuro de tailwind
+            return;
+        }
+
+        // Modo Entrenamiento o Batalla
+        push();
+        translate(width, 0);
+        scale(-1, 1);
         
-        // Si el video está cargado, lo dibujamos llenando la pantalla responsivamente
-        if (video.loadedmetadata) {
-            let videoRatio = video.width / video.height;
-            let canvasRatio = width / height;
-            let drawW, drawH;
-            
-            if (canvasRatio > videoRatio) {
-                drawW = width;
-                drawH = width / videoRatio;
-            } else {
-                drawW = height * videoRatio;
-                drawH = height;
-            }
-            
-            // Dibujar video centrado y en espejo (para celular y web)
-            push();
-            translate(width / 2, height / 2);
-            scale(-1, 1); // Espejo
-            imageMode(CENTER);
-            image(video, 0, 0, drawW, drawH);
-            pop();
-            
-            // Filtro oscuro para resaltar interfaz
-            background(0, 120); 
+        
+        let videoRatio = video.width / video.height;
+        let canvasRatio = width / height;
+        let drawW, drawH, drawX, drawY;
+        
+        if (canvasRatio > videoRatio) {
+            drawW = width;
+            drawH = width / videoRatio;
+            drawX = 0;
+            drawY = (height - drawH) / 2;
+        } else {
+            drawH = height;
+            drawW = height * videoRatio;
+            drawX = (width - drawW) / 2;
+            drawY = 0;
         }
+        image(video, drawX, drawY, drawW, drawH);
+        pop();
+        
+        
+        drawKeypoints();
+        detectGestures();
 
-        if (state === 'PLAYING') {
-            detectGestures();
-            updateAndDrawTank();
-            drawHUD();
-            
-            // Lógica de tiempo para multijugador
-            if (gameMode === 'MULTIPLAYER') {
-                let timeElapsed = Math.floor((millis() - turnStartTime) / 1000);
-                let timeLeft = Math.max(0, turnDuration - timeElapsed);
-                
-                // Dibujar temporizador gigante
-                textAlign(CENTER, TOP);
-                textSize(60);
-                fill(timeLeft <= 5 ? 'red' : 'white');
-                text(timeLeft, width / 2, 40);
-                
-                if (timeLeft === 0) {
-                    if (currentPlayer === 1) endPlayer1Turn();
-                    else showResults();
-                }
-            }
-        }
-    }
-
-    function updateAndDrawTank() {
         let auraObjetivoNormalizada = auraScore / 100.0;
         auraVisual = lerp(auraVisual, auraObjetivoNormalizada, 0.05);
         colorActual[0] = lerp(colorActual[0], colorObjetivo[0], 0.05);
         colorActual[1] = lerp(colorActual[1], colorObjetivo[1], 0.05);
         colorActual[2] = lerp(colorActual[2], colorObjetivo[2], 0.05);
-
+        
         shaderLayer.shader(auraShader);
         auraShader.setUniform('u_time', millis() / 1000.0);
         auraShader.setUniform('u_fillAmount', auraVisual);
         auraShader.setUniform('u_baseColor', colorActual);
         shaderLayer.rect(0, 0, shaderLayer.width, shaderLayer.height);
 
-        // Escalado responsivo del tanque para celular/PC
-        let displayTankW = constrain(width * 0.15, 60, 150);
-        let displayTankH = displayTankW * (400 / 150);
-        let tankX = width - displayTankW - (width * 0.05); // 5% de margen derecho
-        let tankY = height / 2 - displayTankH / 2;
+        let tankX = width - shaderLayer.width - (width * 0.05);
+        let tankY = height / 2 - shaderLayer.height / 2;
         
         stroke(255);
-        strokeWeight(3);
+        strokeWeight(4);
         noFill();
-        rect(tankX - 2, tankY - 2, displayTankW + 4, displayTankH + 4, 8);
-        image(shaderLayer, tankX, tankY, displayTankW, displayTankH);
-    }
+        rect(tankX - 2, tankY - 2, shaderLayer.width + 4, shaderLayer.height + 4, 10);
+        image(shaderLayer, tankX, tankY);
 
-    function drawHUD() {
         fill(255);
         noStroke();
-        textAlign(LEFT, TOP);
+        textSize(height * 0.03); 
+        textAlign(LEFT);
+        text(`Nivel: ${currentLevel}`, width * 0.05, height * 0.15);
         
-        let marginX = width * 0.05; // 5% de margen izquierdo
-        let startY = height * 0.1;
-        
-        textSize(constrain(width * 0.04, 16, 24));
-        if(gameMode === 'MULTIPLAYER') {
-            fill(currentPlayer === 1 ? '#3b82f6' : '#ef4444');
-            text(`JUGADOR ${currentPlayer}`, marginX, startY);
-            fill(255);
-        }
-        
-        text(`Nivel: ${currentLevel}`, marginX, startY + 30);
-        
-        textSize(constrain(width * 0.08, 30, 50));
+        textSize(height * 0.06);
         fill(colorActual[0]*255, colorActual[1]*255, colorActual[2]*255);
-        text(`AURA: ${totalAuraGained}`, marginX, startY + 70);
+        text(`AURA: ${auraScore}`, width * 0.05, height * 0.22);
         
-        textSize(constrain(width * 0.03, 14, 20));
+        textSize(height * 0.03);
         fill(200);
-        text(`${ultimoEstado}`, marginX, startY + 130);
+        text(`Estado: ${ultimoEstado}`, width * 0.05, height * 0.28);
         
-        drawKeypoints();
+        
+        if (estadoJuego === "BATALLA_J1") {
+            fill(250, 204, 21); // Amarillo
+            text(`JUGADOR 1`, width * 0.05, height * 0.35);
+        } else if (estadoJuego === "BATALLA_J2") {
+            fill(34, 197, 94); // Verde
+            text(`JUGADOR 2`, width * 0.05, height * 0.35);
+        }
+
+        if (estadoJuego.startsWith("BATALLA")) {
+            let now = millis();
+            if (now - lastTimeCheck >= 1000) {
+                tiempoRestante--;
+                lastTimeCheck = now;
+                let timerElem = document.getElementById('timer-display');
+                timerElem.innerText = tiempoRestante;
+                
+                if (tiempoRestante <= 5) {
+                    timerElem.classList.add('text-red-500', 'animate-ping');
+                }
+                
+                if (tiempoRestante <= 0) {
+                    if (estadoJuego === "BATALLA_J1") {
+                        scoreJ1 = (currentLevel - 1) * 100 + auraScore;
+                        estadoJuego = "CAMBIO";
+                        document.getElementById('timer-display').classList.add('hidden');
+                        document.getElementById('btn-salir').classList.add('hidden');
+                        document.getElementById('score-p1-pantalla').innerText = `Aura Acumulada: ${scoreJ1}`;
+                        document.getElementById('pantalla-cambio').classList.remove('hidden');
+                    } else if (estadoJuego === "BATALLA_J2") {
+                        scoreJ2 = (currentLevel - 1) * 100 + auraScore;
+                        mostrarResultados();
+                    }
+                }
+            }
+        }
+    }
+
+    function mostrarResultados() {
+        estadoJuego = "RESULTADOS";
+        document.getElementById('timer-display').classList.add('hidden');
+        document.getElementById('btn-salir').classList.add('hidden');
+        document.getElementById('pantalla-resultados').classList.remove('hidden');
+        
+        document.getElementById('score-final-p1').innerText = scoreJ1;
+        document.getElementById('score-final-p2').innerText = scoreJ2;
+        
+        let textoGanador = document.getElementById('texto-ganador');
+        let boxP1 = document.getElementById('box-p1');
+        let boxP2 = document.getElementById('box-p2');
+        
+        boxP1.classList.remove('border-yellow-400', 'shadow-[0_0_20px_rgba(250,204,21,0.5)]');
+        boxP2.classList.remove('border-yellow-400', 'shadow-[0_0_20px_rgba(250,204,21,0.5)]');
+        
+        if (scoreJ1 > scoreJ2) {
+            textoGanador.innerText = "¡GANA JUGADOR 1!";
+            textoGanador.className = "text-5xl font-black mt-10 animate-bounce text-yellow-400";
+            boxP1.classList.add('border-yellow-400', 'shadow-[0_0_20px_rgba(250,204,21,0.5)]');
+        } else if (scoreJ2 > scoreJ1) {
+            textoGanador.innerText = "¡GANA JUGADOR 2!";
+            textoGanador.className = "text-5xl font-black mt-10 animate-bounce text-green-400";
+            boxP2.classList.add('border-green-400', 'shadow-[0_0_20px_rgba(34,197,94,0.5)]');
+        } else {
+            textoGanador.innerText = "¡EMPATE!";
+            textoGanador.className = "text-5xl text-white font-black mt-10";
+        }
     }
 
     function detectGestures() {
         let tiempoActual = millis();
         let puedeFarmear = (tiempoActual - tiempoUltimoGesto) > 1000;
         let gestoFacialActivo = false;
-
-        // NUEVO: Umbrales dinámicos basados en la resolución real de la cámara
-        // Esto arregla el problema en celulares donde la resolución es muy alta y 40px era muy pequeño.
-        let maxDim = Math.max(video.width, video.height);
-        let umbralCara = maxDim * 0.06;      // 6% del tamaño de pantalla (hitbox para boca/mandíbula)
-        let umbralExclusion = maxDim * 0.20; // 20% para zona de exclusión (nariz)
-        let umbralBalancin = maxDim * 0.12;  // 12% para diferencia de altura entre muñecas
-
-        // Escalar la detección a las coordenadas del video mapeado
-        // (Como escalamos el video en draw, necesitamos que el detector actúe sobre las coordenadas originales del modelo)
         
+        let umbralDistancia = height * 0.06;
+
         if (faces.length > 0 && hands.length > 0) {
             let bocaCentro = faces[0].keypoints[13];
             let mandibulaIzq = faces[0].keypoints[132];
             let mandibulaDer = faces[0].keypoints[361];
             let nariz = faces[0].keypoints[1];
 
-            for (let i = 0; i < hands.length; i++) {
-                let dedoIndex = hands[i].keypoints[8]; 
+            let vW = video.width;
+            let vH = video.height;
 
-                if (dist(dedoIndex.x, dedoIndex.y, nariz.x, nariz.y) < umbralExclusion) {
+            for (let i = 0; i < hands.length; i++) {
+                let dedoIndexRaw = hands[i].keypoints[8];
+                let bx = width - map(dedoIndexRaw.x, 0, vW, 0, width);
+                let by = map(dedoIndexRaw.y, 0, vH, 0, height);
+                
+                let nx = width - map(nariz.x, 0, vW, 0, width);
+                let ny = map(nariz.y, 0, vH, 0, height);
+
+                let zonaExclusion = height * 0.25; 
+                if (dist(bx, by, nx, ny) < zonaExclusion) {
                     gestoFacialActivo = true;
                 }
 
                 if (puedeFarmear) {
-                    if (dist(dedoIndex.x, dedoIndex.y, bocaCentro.x, bocaCentro.y) < umbralCara) {
-                        addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]); 
+                    let cx = width - map(bocaCentro.x, 0, vW, 0, width);
+                    let cy = map(bocaCentro.y, 0, vH, 0, height);
+                    
+                    if (dist(bx, by, cx, cy) < umbralDistancia) {
+                        addAura(10, 'SILENCIO', [0.0, 1.0, 1.0]);
                         break;
                     }
-                    else if (dist(dedoIndex.x, dedoIndex.y, mandibulaIzq.x, mandibulaIzq.y) < umbralCara || 
-                             dist(dedoIndex.x, dedoIndex.y, mandibulaDer.x, mandibulaDer.y) < umbralCara) {
-                        addAura(15, 'MEWING', [1.0, 0.0, 1.0]); 
+                    
+                    let mxIzq = width - map(mandibulaIzq.x, 0, vW, 0, width);
+                    let myIzq = map(mandibulaIzq.y, 0, vH, 0, height);
+                    let mxDer = width - map(mandibulaDer.x, 0, vW, 0, width);
+                    let myDer = map(mandibulaDer.y, 0, vH, 0, height);
+                    
+                    if (dist(bx, by, mxIzq, myIzq) < umbralDistancia || 
+                        dist(bx, by, mxDer, myDer) < umbralDistancia) {
+                        addAura(15, 'MEWING', [1.0, 0.0, 1.0]);
                         break;
                     }
                 }
@@ -399,20 +459,26 @@
         }
 
         if (hands.length === 2 && !gestoFacialActivo) {
-            let munecaA = hands[0].keypoints[0]; 
-            let munecaB = hands[1].keypoints[0];
+            let m0_raw = hands[0].keypoints[0]; 
+            let m1_raw = hands[1].keypoints[0];
             
-            // CORRECCIÓN: Ordenamos estrictamente cuál es la mano izquierda y derecha visualmente.
-            // Esto evita que el movimiento rápido vuelva loca a la IA al intercambiar los índices.
-            let munecaIzq = munecaA.x < munecaB.x ? munecaA : munecaB;
-            let munecaDer = munecaA.x < munecaB.x ? munecaB : munecaA;
+            let m0_y = map(m0_raw.y, 0, video.height, 0, height);
+            let m1_y = map(m1_raw.y, 0, video.height, 0, height);
+            let m0_x = width - map(m0_raw.x, 0, video.width, 0, width);
+            let m1_x = width - map(m1_raw.x, 0, video.width, 0, width);
 
-            // Calculamos la diferencia de altura consistentemente
-            let diferenciaY = munecaIzq.y - munecaDer.y;
+            let mIzq_y, mDer_y;
+            if (m0_x < m1_x) {
+                mIzq_y = m0_y;
+                mDer_y = m1_y;
+            } else {
+                mIzq_y = m1_y;
+                mDer_y = m0_y;
+            }
+
             
-            // Reducimos el umbral al 5% para que capte el gesto más rápido, 
-            // atrapando el movimiento antes de que la cámara se vea borrosa por la velocidad.
-            let umbralBalancin = maxDim * 0.05; 
+            let diferenciaY = mIzq_y - mDer_y;
+            let umbralBalancin = height * 0.05; 
 
             if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
                 addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
@@ -425,7 +491,6 @@
 
     function addAura(puntos, estado, colorRGB) {
         auraScore += puntos;
-        totalAuraGained += puntos;
         ultimoEstado = estado;
         colorObjetivo = colorRGB;
         tiempoUltimoGesto = millis();
@@ -433,30 +498,34 @@
         if (auraScore >= 100) {
             currentLevel += Math.floor(auraScore / 100);
             auraScore = auraScore % 100;
-            auraVisual = 0.0; 
+            auraVisual = 0.0;
         }
     }
 
     function drawKeypoints() {
-        // Calculamos la escala para mapear las coordenadas del modelo a la pantalla responsiva
-        let videoRatio = video.width / video.height;
-        let canvasRatio = width / height;
-        let scaleRatio = (canvasRatio > videoRatio) ? (width / video.width) : (height / video.height);
-        
         fill(0, 255, 0);
         noStroke();
         
-        // Mapeo directo de las coordenadas del modelo a las coordenadas visuales de p5
-        // (Al quitar el push() y scale(-1, 1), evitamos que se haga un espejo doble)
+        let vW = video.width;
+        let vH = video.height;
+
         for (let i = 0; i < hands.length; i++) {
             let hand = hands[i];
-            let indexTip = hand.keypoints[8];
+            let indexTipRaw = hand.keypoints[8];
             
-            if(indexTip) {
-                let drawX = (indexTip.x - video.width / 2) * scaleRatio + width / 2;
-                let drawY = (indexTip.y - video.height / 2) * scaleRatio + height / 2;
-                circle(drawX, drawY, 15);
-            }
+            let mappedX = width - map(indexTipRaw.x, 0, vW, 0, width);
+            let mappedY = map(indexTipRaw.y, 0, vH, 0, height);
+            
+            circle(mappedX, mappedY, height * 0.02);
+        }
+    }
+
+    function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+        shaderLayer.resizeCanvas(windowWidth * 0.3, windowHeight * 0.6);
+        
+        if(video && video.loadedmetadata) {
+            video.size(windowWidth, windowHeight);
         }
     }
 </script>
