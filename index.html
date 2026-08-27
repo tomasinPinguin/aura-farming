@@ -28,7 +28,7 @@
 
     <div id="ui-layer">
         
-        <!-- PANTALLA INICIAL -->
+        <!-- PANTALLA INICIAL (Para forzar interacción en Android) -->
         <div id="start-screen" class="pointer-events-auto flex flex-col items-center">
             <h1 class="text-5xl font-extrabold text-yellow-400 mt-6 drop-shadow-lg text-center leading-tight">FARM<br>AURA</h1>
             <p class="text-gray-400 mt-4 text-center max-w-xs mb-8">Usa tu cámara para farmear energía.</p>
@@ -44,10 +44,10 @@
         <!-- MENÚ PRINCIPAL -->
         <div id="menu" class="pointer-events-auto hidden flex flex-col gap-4 mt-8 bg-gray-900 bg-opacity-80 p-8 rounded-2xl border border-gray-700 backdrop-blur-sm">
             <button onclick="iniciarEntrenamiento()" class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold py-3 px-8 rounded-full text-lg w-full transition-colors">
-                Entrenamiento Libre
+                🏋️ Entrenamiento Libre
             </button>
             <button onclick="iniciarBatalla()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-full text-lg w-full shadow-[0_0_15px_rgba(147,51,234,0.5)] transition-colors">
-                Batalla (Pasa el celular)
+                ⚔️ Batalla (Pasa el celular)
             </button>
         </div>
 
@@ -142,11 +142,11 @@
     let ultimoEstado = "ESPERANDO";
     let tiempoUltimoGesto = 0;
     
-    // Estado del sistema
-    let estadoJuego = "INICIO"; 
+    // Estado del Sistema
+    let estadoJuego = "INICIO"; // INICIO, CARGANDO, MENU, ENTRENAMIENTO, BATALLA_J1, CAMBIO, BATALLA_J2, RESULTADOS
     let modelosCargados = 0;
     
-    // Variables batalla
+    // Variables Batalla
     let tiempoRestante = 0;
     let lastTimeCheck = 0;
     let scoreJ1 = 0;
@@ -160,25 +160,25 @@
     let colorActual = [0.5, 0.5, 0.5];
 
     function preload() {
-       
+        // No cargamos los modelos aquí para evitar el timeout en Android. Los cargaremos al hacer clic en "Comenzar"
     }
 
     function setup() {
         let canvas = createCanvas(windowWidth, windowHeight);
         canvas.style('object-fit', 'cover'); 
         
-        
+        // El tanque de shader es un poco más grande
         shaderLayer = createGraphics(windowWidth * 0.3, windowHeight * 0.6, WEBGL);
         auraShader = shaderLayer.createShader(vertShader, fragShader);
         
-       
+        // Creamos el elemento de video pero no iniciamos la captura aún
         video = createCapture({ video: true, audio: false }, function() {
-            
+            // Este callback casi nunca se llama si no se pide el video en setup. Lo manejaremos en iniciarApp()
         });
         video.hide();
     }
 
-   
+    // --- NUEVO SISTEMA DE ARRANQUE ROBUSTO ---
     function iniciarApp() {
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('status').classList.remove('hidden');
@@ -187,7 +187,7 @@
 
         document.getElementById('status').innerText = "1/3 Solicitando cámara...";
         
-        
+        // Re-solicitamos la captura para forzar el prompt en Android
         video = createCapture(VIDEO, function() {
             video.size(windowWidth, windowHeight);
             video.hide();
@@ -204,11 +204,11 @@
         modelosCargados++;
         if (modelosCargados === 2) {
             document.getElementById('status').innerText = "Conectando IA a la cámara...";
-            
+            // Conectamos video
             handPose.detectStart(video, results => { hands = results; });
             faceMesh.detectStart(video, results => { faces = results; });
             
-            
+            // Retraso para que la IA mande el primer frame y no falle
             setTimeout(() => {
                 document.getElementById('status').classList.add('hidden');
                 document.getElementById('title').classList.add('hidden');
@@ -280,7 +280,7 @@
         translate(width, 0);
         scale(-1, 1);
         
-        
+        // Matemática para que el video cubra toda la pantalla (object-fit: cover)
         let videoRatio = video.width / video.height;
         let canvasRatio = width / height;
         let drawW, drawH, drawX, drawY;
@@ -299,22 +299,25 @@
         image(video, drawX, drawY, drawW, drawH);
         pop();
         
-        
+        // Dibujamos los puntos y detectamos gestos
         drawKeypoints();
         detectGestures();
 
+        // Actualizamos visuales
         let auraObjetivoNormalizada = auraScore / 100.0;
         auraVisual = lerp(auraVisual, auraObjetivoNormalizada, 0.05);
         colorActual[0] = lerp(colorActual[0], colorObjetivo[0], 0.05);
         colorActual[1] = lerp(colorActual[1], colorObjetivo[1], 0.05);
         colorActual[2] = lerp(colorActual[2], colorObjetivo[2], 0.05);
-        
+
+        // Renderizamos Shader
         shaderLayer.shader(auraShader);
         auraShader.setUniform('u_time', millis() / 1000.0);
         auraShader.setUniform('u_fillAmount', auraVisual);
         auraShader.setUniform('u_baseColor', colorActual);
         shaderLayer.rect(0, 0, shaderLayer.width, shaderLayer.height);
 
+        // Posicionamos el tanque (Responsivo)
         let tankX = width - shaderLayer.width - (width * 0.05);
         let tankY = height / 2 - shaderLayer.height / 2;
         
@@ -324,6 +327,7 @@
         rect(tankX - 2, tankY - 2, shaderLayer.width + 4, shaderLayer.height + 4, 10);
         image(shaderLayer, tankX, tankY);
 
+        // UI de Textos
         fill(255);
         noStroke();
         textSize(height * 0.03); 
@@ -338,7 +342,7 @@
         fill(200);
         text(`Estado: ${ultimoEstado}`, width * 0.05, height * 0.28);
         
-        
+        // Texto extra indicando Jugador actual
         if (estadoJuego === "BATALLA_J1") {
             fill(250, 204, 21); // Amarillo
             text(`JUGADOR 1`, width * 0.05, height * 0.35);
@@ -347,6 +351,7 @@
             text(`JUGADOR 2`, width * 0.05, height * 0.35);
         }
 
+        // Lógica del Temporizador de Batalla
         if (estadoJuego.startsWith("BATALLA")) {
             let now = millis();
             if (now - lastTimeCheck >= 1000) {
@@ -467,6 +472,7 @@
             let m0_x = width - map(m0_raw.x, 0, video.width, 0, width);
             let m1_x = width - map(m1_raw.x, 0, video.width, 0, width);
 
+            // 1. Identificar estrictamente cuál es la izquierda y derecha visualmente
             let mIzq_y, mDer_y;
             if (m0_x < m1_x) {
                 mIzq_y = m0_y;
@@ -476,9 +482,9 @@
                 mDer_y = m0_y;
             }
 
-            
+            // 2. Calcular la diferencia con el orden correcto
             let diferenciaY = mIzq_y - mDer_y;
-            let umbralBalancin = height * 0.05; 
+            let umbralBalancin = height * 0.05; // 5% de la altura de la pantalla (muy sensible)
 
             if (diferenciaY < -umbralBalancin && ultimoEstado !== 'IZQ_ARRIBA') {
                 addAura(5, 'IZQ_ARRIBA', [1.0, 0.8, 0.0]); // Dorado
@@ -513,7 +519,8 @@
             let hand = hands[i];
             let indexTipRaw = hand.keypoints[8];
             
-            let mappedX = width - map(indexTipRaw.x, 0, vW, 0, width);
+            // Eliminamos la doble inversión. ml5.js ya lo hace por nosotros.
+            let mappedX = map(indexTipRaw.x, 0, vW, 0, width);
             let mappedY = map(indexTipRaw.y, 0, vH, 0, height);
             
             circle(mappedX, mappedY, height * 0.02);
@@ -523,7 +530,7 @@
     function windowResized() {
         resizeCanvas(windowWidth, windowHeight);
         shaderLayer.resizeCanvas(windowWidth * 0.3, windowHeight * 0.6);
-        
+        // Si la cámara ya está activa, intentar ajustar su tamaño interno sin romperla
         if(video && video.loadedmetadata) {
             video.size(windowWidth, windowHeight);
         }
